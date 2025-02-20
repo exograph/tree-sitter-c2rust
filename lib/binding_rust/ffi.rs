@@ -2,26 +2,11 @@
 #![allow(non_upper_case_globals)]
 #![allow(non_camel_case_types)]
 #![allow(clippy::missing_const_for_fn)]
-
-#[cfg(feature = "bindgen")]
-include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
-
-#[cfg(not(feature = "bindgen"))]
-include!("./bindings.rs");
-
-#[cfg(unix)]
-#[cfg(feature = "std")]
-extern "C" {
-    pub(crate) fn _ts_dup(fd: std::os::raw::c_int) -> std::os::raw::c_int;
-}
-
-#[cfg(windows)]
-extern "C" {
-    pub(crate) fn _ts_dup(handle: *mut std::os::raw::c_void) -> std::os::raw::c_int;
-}
+#![allow(hidden_glob_reexports)]
 
 use core::{marker::PhantomData, mem::ManuallyDrop, ptr::NonNull, str};
 
+pub use crate::core_transpiled::*;
 use crate::{
     Language, LookaheadIterator, Node, ParseState, Parser, Query, QueryCursor, QueryCursorState,
     QueryError, Tree, TreeCursor,

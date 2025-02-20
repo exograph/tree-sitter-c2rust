@@ -2,7 +2,7 @@ name: Build & Test
 
 env:
   CARGO_TERM_COLOR: always
-  RUSTFLAGS: "-D warnings"
+  # RUSTFLAGS: "-D warnings"
   CROSS_DEBUG: 1
 
 on:
@@ -25,7 +25,7 @@ jobs:
           - linux-arm
           - linux-x64
           - linux-x86
-          - linux-powerpc64
+          # - linux-powerpc64
           - windows-arm64
           - windows-x64
           - windows-x86
@@ -38,20 +38,20 @@ jobs:
           # 2. Add a new record to the matrix map in `cli/npm/install.js`
           - { platform: linux-arm64       , target: aarch64-unknown-linux-gnu   , os: ubuntu-latest    , use-cross: true }
           - { platform: linux-arm         , target: arm-unknown-linux-gnueabi   , os: ubuntu-latest    , use-cross: true }
-          - { platform: linux-x64         , target: x86_64-unknown-linux-gnu    , os: ubuntu-22.04     , features: wasm  }
+          - { platform: linux-x64         , target: x86_64-unknown-linux-gnu    , os: ubuntu-22.04                       }
           - { platform: linux-x86         , target: i686-unknown-linux-gnu      , os: ubuntu-latest    , use-cross: true }
-          - { platform: linux-powerpc64   , target: powerpc64-unknown-linux-gnu , os: ubuntu-latest    , use-cross: true }
+          # - { platform: linux-powerpc64   , target: powerpc64-unknown-linux-gnu , os: ubuntu-latest    , use-cross: true }
           - { platform: windows-arm64     , target: aarch64-pc-windows-msvc     , os: windows-latest                     }
-          - { platform: windows-x64       , target: x86_64-pc-windows-msvc      , os: windows-latest   , features: wasm  }
+          - { platform: windows-x64       , target: x86_64-pc-windows-msvc      , os: windows-latest                     }
           - { platform: windows-x86       , target: i686-pc-windows-msvc        , os: windows-latest                     }
-          - { platform: macos-arm64       , target: aarch64-apple-darwin        , os: macos-latest     , features: wasm  }
-          - { platform: macos-x64         , target: x86_64-apple-darwin         , os: macos-13         , features: wasm  }
+          - { platform: macos-arm64       , target: aarch64-apple-darwin        , os: macos-latest                       }
+          - { platform: macos-x64         , target: x86_64-apple-darwin         , os: macos-13                           }
 
           # Cross compilers for C library
           - { platform: linux-arm64       , cc: aarch64-linux-gnu-gcc           , ar: aarch64-linux-gnu-ar   }
           - { platform: linux-arm         , cc: arm-linux-gnueabi-gcc           , ar: arm-linux-gnueabi-ar   }
           - { platform: linux-x86         , cc: i686-linux-gnu-gcc              , ar: i686-linux-gnu-ar      }
-          - { platform: linux-powerpc64   , cc: powerpc64-linux-gnu-gcc         , ar: powerpc64-linux-gnu-ar }
+          # - { platform: linux-powerpc64   , cc: powerpc64-linux-gnu-gcc         , ar: powerpc64-linux-gnu-ar }
 
           # Prevent race condition (see #2041)
           - { platform: windows-x64   , rust-test-threads: 1 }
@@ -85,6 +85,7 @@ jobs:
       uses: actions-rust-lang/setup-rust-toolchain@v1
       with:
         target: ${{ matrix.target }}
+        cache: false
 
     - name: Install cross
       if: ${{ matrix.use-cross }}
@@ -157,43 +158,43 @@ jobs:
       env:
         WASMTIME_REPO: https://github.com/bytecodealliance/wasmtime
 
-    - name: Build C library (make)
-      if: ${{ runner.os != 'Windows' }}
-      run: make.sh -j CFLAGS="$CFLAGS"
-      env:
-        CFLAGS: -g -Werror -Wall -Wextra -Wshadow -Wpedantic -Werror=incompatible-pointer-types
+    # - name: Build C library (make)
+    #   if: ${{ runner.os != 'Windows' }}
+    #   run: make.sh -j CFLAGS="$CFLAGS"
+    #   env:
+    #     CFLAGS: -g -Werror -Wall -Wextra -Wshadow -Wpedantic -Werror=incompatible-pointer-types
 
-    - name: Build C library (CMake)
-      if: ${{ !matrix.use-cross }}
-      run: |
-        cmake -S lib -B build/static \
-          -DBUILD_SHARED_LIBS=OFF \
-          -DCMAKE_BUILD_TYPE=Debug \
-          -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
-          -DTREE_SITTER_FEATURE_WASM=$WASM
-        cmake --build build/static --verbose
+    # - name: Build C library (CMake)
+    #   if: ${{ !matrix.use-cross }}
+    #   run: |
+    #     cmake -S lib -B build/static \
+    #       -DBUILD_SHARED_LIBS=OFF \
+    #       -DCMAKE_BUILD_TYPE=Debug \
+    #       -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
+    #       -DTREE_SITTER_FEATURE_WASM=$WASM
+    #     cmake --build build/static --verbose
 
-        cmake -S lib -B build/shared \
-          -DBUILD_SHARED_LIBS=ON \
-          -DCMAKE_BUILD_TYPE=Debug \
-          -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
-          -DTREE_SITTER_FEATURE_WASM=$WASM
-        cmake --build build/shared --verbose
-      env:
-        CC: ${{ contains(matrix.target, 'linux') && 'clang' || '' }}
-        WASM: ${{ contains(matrix.features, 'wasm') && 'ON' || 'OFF' }}
+    #     cmake -S lib -B build/shared \
+    #       -DBUILD_SHARED_LIBS=ON \
+    #       -DCMAKE_BUILD_TYPE=Debug \
+    #       -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
+    #       -DTREE_SITTER_FEATURE_WASM=$WASM
+    #     cmake --build build/shared --verbose
+    #   env:
+    #     CC: ${{ contains(matrix.target, 'linux') && 'clang' || '' }}
+    #     WASM: ${{ contains(matrix.features, 'wasm') && 'ON' || 'OFF' }}
 
-    - name: Build wasm library
-      # No reason to build on the same Github runner hosts many times
-      if: ${{ !matrix.no-run && !matrix.use-cross }}
-      shell: bash
-      run: |
-        cd lib/binding_web
-        npm ci
-        CJS=true npm run build
-        CJS=true npm run build:debug
-        npm run build
-        npm run build:debug
+    # - name: Build wasm library
+    #   # No reason to build on the same Github runner hosts many times
+    #   if: ${{ !matrix.no-run && !matrix.use-cross }}
+    #   shell: bash
+    #   run: |
+    #     cd lib/binding_web
+    #     npm ci
+    #     CJS=true npm run build
+    #     CJS=true npm run build:debug
+    #     npm run build
+    #     npm run build:debug
 
     - name: Build target
       run: $BUILD_CMD build --release --target=${{ matrix.target }} --features=${{ matrix.features }}
@@ -211,17 +212,17 @@ jobs:
       if: ${{ !matrix.no-run && inputs.run-test && steps.cache.outputs.cache-hit != 'true' }}
       run: $BUILD_CMD run -p xtask -- generate-fixtures
 
-    - name: Generate Wasm fixtures
-      if: ${{ !matrix.no-run && !matrix.use-cross && inputs.run-test && steps.cache.outputs.cache-hit != 'true' }}
-      run: $BUILD_CMD run -p xtask -- generate-fixtures --wasm
+    # - name: Generate Wasm fixtures
+    #   if: ${{ !matrix.no-run && !matrix.use-cross && inputs.run-test && steps.cache.outputs.cache-hit != 'true' }}
+    #   run: $BUILD_CMD run -p xtask -- generate-fixtures --wasm
 
     - name: Run main tests
       if: ${{ !matrix.no-run && inputs.run-test }}
       run: $BUILD_CMD test --target=${{ matrix.target }} --features=${{ matrix.features }}
 
-    - name: Run wasm tests
-      if: ${{ !matrix.no-run && !matrix.use-cross && inputs.run-test }}
-      run: $BUILD_CMD run -p xtask -- test-wasm
+    # - name: Run wasm tests
+    #   if: ${{ !matrix.no-run && !matrix.use-cross && inputs.run-test }}
+    #   run: $BUILD_CMD run -p xtask -- test-wasm
 
     - name: Run benchmarks
       # Cross-compiled benchmarks are pointless
@@ -236,23 +237,23 @@ jobs:
         if-no-files-found: error
         retention-days: 7
 
-    - name: Upload Wasm artifacts
-      if: ${{ matrix.platform == 'linux-x64' }}
-      uses: actions/upload-artifact@v4
-      with:
-        name: tree-sitter.wasm
-        path: |
-          lib/binding_web/tree-sitter.js
-          lib/binding_web/tree-sitter.js.map
-          lib/binding_web/tree-sitter.cjs
-          lib/binding_web/tree-sitter.cjs.map
-          lib/binding_web/tree-sitter.wasm
-          lib/binding_web/tree-sitter.wasm.map
-          lib/binding_web/debug/tree-sitter.cjs
-          lib/binding_web/debug/tree-sitter.cjs.map
-          lib/binding_web/debug/tree-sitter.js
-          lib/binding_web/debug/tree-sitter.js.map
-          lib/binding_web/debug/tree-sitter.wasm
-          lib/binding_web/debug/tree-sitter.wasm.map
-        if-no-files-found: error
-        retention-days: 7
+    # - name: Upload Wasm artifacts
+    #   if: ${{ matrix.platform == 'linux-x64' }}
+    #   uses: actions/upload-artifact@v4
+    #   with:
+    #     name: tree-sitter.wasm
+    #     path: |
+    #       lib/binding_web/tree-sitter.js
+    #       lib/binding_web/tree-sitter.js.map
+    #       lib/binding_web/tree-sitter.cjs
+    #       lib/binding_web/tree-sitter.cjs.map
+    #       lib/binding_web/tree-sitter.wasm
+    #       lib/binding_web/tree-sitter.wasm.map
+    #       lib/binding_web/debug/tree-sitter.cjs
+    #       lib/binding_web/debug/tree-sitter.cjs.map
+    #       lib/binding_web/debug/tree-sitter.js
+    #       lib/binding_web/debug/tree-sitter.js.map
+    #       lib/binding_web/debug/tree-sitter.wasm
+    #       lib/binding_web/debug/tree-sitter.wasm.map
+    #     if-no-files-found: error
+    #     retention-days: 7

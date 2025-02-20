@@ -1,13 +1,17 @@
+#[cfg(feature = "capi")]
+use std::process::{Command, Stdio};
 use std::{
     path::{Path, PathBuf},
-    process::{Child, ChildStdin, Command, Stdio},
+    process::{Child, ChildStdin},
     sync::{
         atomic::{AtomicUsize, Ordering},
         Arc,
     },
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::Result;
+#[cfg(feature = "capi")]
+use anyhow::{anyhow, Context};
 use indoc::indoc;
 use tree_sitter::{Parser, Tree};
 use tree_sitter_config::Config;
@@ -70,19 +74,32 @@ pub struct LogSession {
     open_log: bool,
 }
 
+#[cfg(feature = "capi")]
 pub fn print_tree_graph(tree: &Tree, path: &str, quiet: bool) -> Result<()> {
     let session = LogSession::new(path, quiet)?;
     tree.print_dot_graph(session.dot_process_stdin.as_ref().unwrap());
     Ok(())
 }
 
+#[cfg(not(feature = "capi"))]
+pub fn print_tree_graph(_tree: &Tree, _path: &str, _quiet: bool) -> Result<()> {
+    panic!("Printing tree graphs is only available with the `capi` feature")
+}
+
+#[cfg(feature = "capi")]
 pub fn log_graphs(parser: &mut Parser, path: &str, open_log: bool) -> Result<LogSession> {
     let session = LogSession::new(path, open_log)?;
     parser.print_dot_graphs(session.dot_process_stdin.as_ref().unwrap());
     Ok(session)
 }
 
+#[cfg(not(feature = "capi"))]
+pub fn log_graphs(_parser: &mut Parser, _path: &str, _open_log: bool) -> Result<LogSession> {
+    panic!("Logging graphs is only available with the `capi` feature")
+}
+
 impl LogSession {
+    #[cfg(feature = "capi")]
     fn new(path: &str, open_log: bool) -> Result<Self> {
         use std::io::Write;
 
