@@ -1,5 +1,9 @@
 #![doc = include_str!("./README.md")]
 #![cfg_attr(not(feature = "std"), no_std)]
+
+mod core_wrapper;
+pub use core_wrapper::core as core_transpiled;
+
 pub mod ffi;
 mod util;
 
@@ -21,9 +25,10 @@ use core::{
 };
 #[cfg(feature = "std")]
 use std::error;
-#[cfg(all(feature = "std", any(unix, target_os = "wasi")))]
+#[cfg(feature = "capi")]
+#[cfg(all(feature = "std", feature = "capi", any(unix, target_os = "wasi")))]
 use std::os::fd::AsRawFd;
-#[cfg(all(windows, feature = "std"))]
+#[cfg(all(windows, feature = "std", feature = "capi"))]
 use std::os::windows::io::AsRawHandle;
 
 use streaming_iterator::{StreamingIterator, StreamingIteratorMut};
@@ -545,6 +550,7 @@ impl Parser {
         unsafe { ffi::ts_parser_set_logger(self.0.as_ptr(), c_logger) };
     }
 
+    #[cfg(feature = "capi")]
     /// Set the destination to which the parser should write debugging graphs
     /// during parsing. The graphs are formatted in the DOT language. You may
     /// want to pipe these graphs directly to a `dot(1)` process in order to
@@ -939,11 +945,12 @@ impl Tree {
             let ptr = ffi::ts_tree_included_ranges(self.0.as_ptr(), core::ptr::addr_of_mut!(count));
             let ranges = slice::from_raw_parts(ptr, count as usize);
             let result = ranges.iter().copied().map(Into::into).collect();
-            (FREE_FN)(ptr.cast::<c_void>());
+            ffi::ts_free(ptr.cast::<c_void>());
             result
         }
     }
 
+    #[cfg(feature = "capi")]
     /// Print a graph of the tree to the given file descriptor.
     /// The graph is formatted in the DOT language. You may want to pipe this
     /// graph directly to a `dot(1)` process in order to generate SVG
@@ -1471,7 +1478,7 @@ impl<'tree> Node<'tree> {
             .to_str()
             .unwrap()
             .to_string();
-        unsafe { (FREE_FN)(c_string.cast::<c_void>()) };
+        unsafe { ffi::ts_free(c_string.cast::<c_void>()) };
         result
     }
 
@@ -3151,12 +3158,6 @@ pub fn wasm_stdlib_symbols() -> impl Iterator<Item = &'static str> {
         .map(|s| s.trim_matches(|c| c == '"' || c == ','))
 }
 
-extern "C" {
-    fn free(ptr: *mut c_void);
-}
-
-static mut FREE_FN: unsafe extern "C" fn(ptr: *mut c_void) = free;
-
 /// Sets the memory allocation functions that the core library should use.
 ///
 /// # Safety
@@ -3169,7 +3170,6 @@ pub unsafe fn set_allocator(
     new_realloc: Option<unsafe extern "C" fn(*mut c_void, usize) -> *mut c_void>,
     new_free: Option<unsafe extern "C" fn(*mut c_void)>,
 ) {
-    FREE_FN = new_free.unwrap_or(free);
     ffi::ts_set_allocator(new_malloc, new_calloc, new_realloc, new_free);
 }
 

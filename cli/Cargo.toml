@@ -26,6 +26,7 @@ harness = false
 
 [features]
 wasm = ["tree-sitter/wasm", "tree-sitter-loader/wasm"]
+capi = ["tree-sitter/capi"]
 
 [dependencies]
 anstyle.workspace = true
