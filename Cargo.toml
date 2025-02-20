@@ -9,19 +9,19 @@ members = [
   "tags",
   "highlight",
   "xtask",
+  "process_c2rust"
 ]
 resolver = "2"
 
 [workspace.package]
 version = "0.25.1"
 authors = [
-  "Max Brunsfeld <maxbrunsfeld@gmail.com>",
-  "Amaan Qureshi <amaanq12@gmail.com>",
+  "Shadaj Laddad <shadaj@users.noreply.github.com>"
 ]
 edition = "2021"
 rust-version = "1.82"
 homepage = "https://tree-sitter.github.io/tree-sitter"
-repository = "https://github.com/tree-sitter/tree-sitter"
+repository = "https://github.com/shadaj/tree-sitter-c2rust"
 license = "MIT"
 keywords = ["incremental", "parsing"]
 categories = ["command-line-utilities", "parsing"]
@@ -149,9 +149,16 @@ walkdir = "2.5.0"
 wasmparser = "0.224.0"
 webbrowser = "1.0.3"
 
-tree-sitter = { version = "0.25.1", path = "./lib" }
+tree-sitter = { version = "0.25.1", path = "./lib", package = "tree-sitter-c2rust" }
 tree-sitter-generate = { version = "0.25.1", path = "./cli/generate" }
 tree-sitter-loader = { version = "0.25.1", path = "./cli/loader" }
 tree-sitter-config = { version = "0.25.1", path = "./cli/config" }
 tree-sitter-highlight = { version = "0.25.1", path = "./highlight" }
 tree-sitter-tags = { version = "0.25.1", path = "./tags" }
+
+[profile.dev.package.tree-sitter-c2rust]
+opt-level = 3
+debug-assertions = false
+overflow-checks = false
+incremental = false
+codegen-units = 1
