@@ -145,7 +145,7 @@ thiserror = "2.0.11"
 tiny_http = "0.12.0"
 toml = "0.8.19"
 unindent = "0.2.3"
-url = { version = "2.5.4", features = ["serde"] }
+url = { version = "2.4.1", features = ["serde"] }
 walkdir = "2.5.0"
 wasmparser = "0.224.0"
 webbrowser = "1.0.3"
